@@ -1,0 +1,46 @@
+<?php
+namespace Opencart\Application\Model\Tool;
+class Image extends \Opencart\System\Engine\Model {
+	public function resize($filename, $width, $height) {
+		if (!is_file(DIR_IMAGE . $filename) || get_path(DIR_IMAGE . $filename, DIR_IMAGE) != str_replace('\\', '/', DIR_IMAGE)) {
+			return;
+		}
+
+		$extension = pathinfo($filename, PATHINFO_EXTENSION);
+
+		$image_old = $filename;
+		$image_new = 'cache/' . utf8_substr($filename, 0, utf8_strrpos($filename, '.')) . '-' . (int)$width . 'x' . (int)$height . '.' . $extension;
+
+		if (!is_file(DIR_IMAGE . $image_new) || (filemtime(DIR_IMAGE . $image_old) > filemtime(DIR_IMAGE . $image_new))) {
+			list($width_orig, $height_orig, $image_type) = getimagesize(DIR_IMAGE . $image_old);
+				 
+			if (!in_array($image_type, array(IMAGETYPE_PNG, IMAGETYPE_JPEG, IMAGETYPE_GIF))) { 
+				return $this->config->get('config_url') . 'image/' . $image_old;
+			}
+						
+			$path = '';
+
+			$directories = explode('/', dirname($image_new));
+
+			foreach ($directories as $directory) {
+				$path = $path . '/' . $directory;
+
+				if (!is_dir(DIR_IMAGE . $path)) {
+					@mkdir(DIR_IMAGE . $path, 0777);
+				}
+			}
+
+			if ($width_orig != $width || $height_orig != $height) {
+				$image = new \Opencart\System\library\Image(DIR_IMAGE . $image_old);
+				$image->resize($width, $height);
+				$image->save(DIR_IMAGE . $image_new);
+			} else {
+				copy(DIR_IMAGE . $image_old, DIR_IMAGE . $image_new);
+			}
+		}
+		
+		$image_new = str_replace(' ', '%20', $image_new);  // fix bug when attach image on email (gmail.com). it is automatically changing space from " " to +
+		
+		return $this->config->get('config_url') . 'image/' . $image_new;
+	}
+}
